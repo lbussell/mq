@@ -3,8 +3,14 @@
     https://learn.microsoft.com/en-us/nuget/create-packages/package-authoring-best-practices -->
 
   <PropertyGroup>
-    <IsAotCompatible>true</IsAotCompatible>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mq</ToolCommandName>
   </PropertyGroup>
+
+  <ItemGroup Label="Dependencies">
+    <PackageReference Include="ConsoleAppFramework" />
+  </ItemGroup>
 
   <PropertyGroup Label="Package Metadata">
     <!-- <PackageId></PackageId> -->

@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 Logan Bussell
 // SPDX-License-Identifier: MIT
 
-using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Mq.Core;
 
 namespace Mq.Core.Tests;
 
@@ -11,48 +9,89 @@ namespace Mq.Core.Tests;
 public class MqProcessorTests
 {
     [TestMethod]
-    public void Process_ValidJsonObject_ReturnsOk()
+    public void Process_TitleProperty_BecomesH1()
     {
-        string result = MqProcessor.Process("""{"key": "value"}""");
-        Assert.AreEqual("OK", result);
+        string json = """{"nameWithOwner": "dotnet/runtime", "stars": 100}""";
+        string result = MqProcessor.Process(json, title: "nameWithOwner");
+        StringAssert.StartsWith(result, "# dotnet/runtime");
     }
 
     [TestMethod]
-    public void Process_ValidJsonArray_ReturnsOk()
+    public void Process_ScalarProperties_BecomeKeyValueLines()
     {
-        string result = MqProcessor.Process("""[1, 2, 3]""");
-        Assert.AreEqual("OK", result);
+        string json =
+            """{"nameWithOwner": "dotnet/runtime", "stars": 100, "url": "https://example.com"}""";
+        string result = MqProcessor.Process(json, title: "nameWithOwner");
+        string expected = """
+            # dotnet/runtime
+            stars: 100
+            url: https://example.com
+            """;
+        Assert.AreEqual(Dedent(expected), result);
     }
 
     [TestMethod]
-    public void Process_ValidJsonString_ReturnsOk()
+    public void Process_NestedObject_BecomesSectionWithFields()
     {
-        string result = MqProcessor.Process(
-            """
-            "hello"
-            """
-        );
-        Assert.AreEqual("OK", result);
+        string json = """{"name": "test", "issues": {"totalCount": 7878}}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+            ## issues
+            totalCount: 7878
+            """;
+        Assert.AreEqual(Dedent(expected), result);
     }
 
     [TestMethod]
-    public void Process_ValidJsonNumber_ReturnsOk()
+    public void Process_ScalarArray_BecomesBulletList()
     {
-        string result = MqProcessor.Process("42");
-        Assert.AreEqual("OK", result);
+        string json = """{"name": "test", "tags": ["alpha", "beta", "gamma"]}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+            ## tags
+            - alpha
+            - beta
+            - gamma
+            """;
+        Assert.AreEqual(Dedent(expected), result);
     }
 
     [TestMethod]
-    [ExpectedException(typeof(JsonException), AllowDerivedTypes = true)]
-    public void Process_InvalidJson_ThrowsJsonException()
+    public void Process_ObjectArray_BecomesSubHeadingsPerElement()
     {
-        MqProcessor.Process("not json");
+        string json = """{"name": "test", "items": [{"a": 1}, {"a": 2}]}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+            ## items
+            ### 0
+            a: 1
+            ### 1
+            a: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
     }
 
     [TestMethod]
-    [ExpectedException(typeof(JsonException), AllowDerivedTypes = true)]
-    public void Process_EmptyString_ThrowsJsonException()
+    public void Process_DeeplyNested_IncrementsHeadingDepth()
     {
-        MqProcessor.Process("");
+        string json = """{"name": "root", "level1": {"level2": {"value": 42}}}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # root
+            ## level1
+            ### level2
+            value: 42
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    private static string Dedent(string text)
+    {
+        string[] lines = text.Split('\n');
+        string[] trimmed = [.. lines.Where(l => l.Trim().Length > 0).Select(l => l.TrimStart())];
+        return string.Join("\n", trimmed);
     }
 }

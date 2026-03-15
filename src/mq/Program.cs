@@ -10,13 +10,14 @@ consoleApp.Run(args);
 
 class MqCommand
 {
-    /// <summary>Parse JSON from an argument or standard input.</summary>
-    /// <param name="input">JSON string to parse. Reads from stdin if omitted.</param>
+    /// <summary>Convert JSON to Markdown.</summary>
+    /// <param name="input">JSON string. Reads from stdin if omitted.</param>
+    /// <param name="title">JSON property to use as the H1 heading.</param>
     [Command("")]
-    public void Execute([Argument] string? input = null)
+    public void Execute([Argument] string? input = null, string? title = null)
     {
         input ??= Console.In.ReadToEnd();
-        string result = MqProcessor.Process(input);
+        string result = MqProcessor.Process(input, title);
         Console.WriteLine(result);
     }
 }

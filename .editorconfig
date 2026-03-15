@@ -37,6 +37,7 @@ dotnet_diagnostic.IDE0090.severity = none
 dotnet_style_collection_initializer = true:warning
 dotnet_style_prefer_collection_expression = when_types_exactly_match:warning
 
+dotnet_diagnostic.IDE0001.severity = warning # Simplify name
 dotnet_diagnostic.IDE0004.severity = warning # Remove unnecessary cast
 dotnet_diagnostic.IDE0005.severity = warning # Using directive is unnecessary
 dotnet_diagnostic.CS1591.severity = warning # Require XML doc comments on public members

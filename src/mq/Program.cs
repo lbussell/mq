@@ -12,5 +12,8 @@ public class Commands
 {
     /// <summary>Default command.</summary>
     [Command("")]
-    public void Root() => Console.WriteLine("Hello world");
+    public void Root()
+    {
+        Console.WriteLine("Hello world");
+    }
 }

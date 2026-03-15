@@ -2,18 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 using ConsoleAppFramework;
+using Mq;
 
 ConsoleApp.ConsoleAppBuilder consoleApp = ConsoleApp.Create();
-consoleApp.Add<Commands>();
+consoleApp.Add<MqCommand>();
 consoleApp.Run(args);
-
-/// <summary>CLI commands for mq.</summary>
-public class Commands
-{
-    /// <summary>Default command.</summary>
-    [Command("")]
-    public void Root()
-    {
-        Console.WriteLine("Hello world");
-    }
-}

@@ -12,6 +12,10 @@
     <PackageReference Include="ConsoleAppFramework" />
   </ItemGroup>
 
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="../mq.core/mq.core.csproj" />
+  </ItemGroup>
+
   <PropertyGroup Label="Package Metadata">
     <!-- <PackageId></PackageId> -->
     <!-- <Description></Description> -->

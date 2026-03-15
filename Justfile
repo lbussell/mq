@@ -7,6 +7,7 @@ default:
 validate:
     dotnet clean
     dotnet build --no-restore
+    dotnet test --no-build
 
 # run the app, passing any extra arguments through
 run *args:

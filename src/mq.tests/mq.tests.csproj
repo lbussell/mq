@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RootNamespace>Mq.Core.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup Label="Test Dependencies">
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="../mq.core/mq.core.csproj" />
+  </ItemGroup>
+</Project>

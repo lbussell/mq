@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="src/mq/mq.csproj" />
+  <Project Path="src/mq.core/mq.core.csproj" />
+  <Project Path="src/mq.tests/mq.tests.csproj" />
 </Solution>

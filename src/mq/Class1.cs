@@ -1,4 +1,4 @@
-﻿namespace Classlib;
+﻿namespace mq;
 
 /// <summary>
 /// Hello, I am documented!

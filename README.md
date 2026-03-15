@@ -1,6 +1,4 @@
-# .NET Project Template
-
-Starter repository for .NET projects with a root solution, shared build settings, GitHub Actions workflows, and a few file-based scripts for common repository setup tasks.
+# MQ
 
 ## Automation scripts
 

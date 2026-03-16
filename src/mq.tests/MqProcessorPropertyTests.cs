@@ -107,6 +107,23 @@ public class MqProcessorPropertyTests
             );
     }
 
+    [TestMethod]
+    public void Process_ValidJsonObject_ReturnsNonEmptyOutput()
+    {
+        Gen.Select(AlphaNumString, AlphaNumString)
+            .Where((key, value) => key != value)
+            .Sample(
+                (key, value) =>
+                {
+                    string json = $$"""{"{{key}}": "{{value}}"}""";
+                    string result = MqProcessor.Process(json);
+
+                    return !string.IsNullOrWhiteSpace(result);
+                },
+                iter: 1000
+            );
+    }
+
     /// <summary>
     /// Builds a JSON object nested to the specified depth.
     /// Depth 1: {"a": {"value": 1}}

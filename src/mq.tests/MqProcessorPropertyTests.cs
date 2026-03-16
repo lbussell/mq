@@ -46,4 +46,21 @@ public class MqProcessorPropertyTests
                 iter: 1000
             );
     }
+
+    [TestMethod]
+    public void Process_WithTitle_OutputStartsWithH1()
+    {
+        Gen.Select(AlphaNumString, AlphaNumString)
+            .Where((key, value) => key != value)
+            .Sample(
+                (key, value) =>
+                {
+                    string json = $$"""{"{{key}}": "{{value}}"}""";
+                    string result = MqProcessor.Process(json, title: key);
+
+                    return result.StartsWith($"# {value}");
+                },
+                iter: 1000
+            );
+    }
 }

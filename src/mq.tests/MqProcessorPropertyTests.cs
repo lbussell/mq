@@ -63,4 +63,21 @@ public class MqProcessorPropertyTests
                 iter: 1000
             );
     }
+
+    [TestMethod]
+    public void Process_Output_HasNoTrailingWhitespace()
+    {
+        Gen.Select(AlphaNumString, AlphaNumString)
+            .Where((key, value) => key != value)
+            .Sample(
+                (key, value) =>
+                {
+                    string json = $$"""{"{{key}}": "{{value}}"}""";
+                    string result = MqProcessor.Process(json);
+
+                    return result == result.TrimEnd();
+                },
+                iter: 1000
+            );
+    }
 }

@@ -1,6 +1,6 @@
 ---
 name: creating-console-apps
-description: A skill for creating .NET command line applications using ConsoleAppFramework.
+description: Create .NET command line applications using ConsoleAppFramework.
 ---
 
 # Agent Instructions

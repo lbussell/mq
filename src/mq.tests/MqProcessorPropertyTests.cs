@@ -29,4 +29,21 @@ public class MqProcessorPropertyTests
                 iter: 1000
             );
     }
+
+    [TestMethod]
+    public void Process_TopLevelKeys_AppearInOutput()
+    {
+        Gen.Select(AlphaNumString, AlphaNumString, AlphaNumString)
+            .Where((key1, key2, _) => key1 != key2)
+            .Sample(
+                (key1, key2, value) =>
+                {
+                    string json = $$"""{"{{key1}}": "{{value}}", "{{key2}}": 99}""";
+                    string result = MqProcessor.Process(json);
+
+                    return result.Contains(key1) && result.Contains(key2);
+                },
+                iter: 1000
+            );
+    }
 }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 Logan Bussell
 // SPDX-License-Identifier: MIT
 
+using System.Text;
 using CsCheck;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -79,5 +80,49 @@ public class MqProcessorPropertyTests
                 },
                 iter: 1000
             );
+    }
+
+    [TestMethod]
+    public void Process_HeadingDepth_NeverExceedsNestingDepthPlusOne()
+    {
+        // Generate a random nesting depth between 1 and 5
+        Gen.Int[1, 5]
+            .Sample(
+                depth =>
+                {
+                    string json = BuildNestedJson(depth);
+                    string result = MqProcessor.Process(json);
+
+                    int maxHashes = result
+                        .Split('\n')
+                        .Where(line => line.StartsWith('#'))
+                        .Select(line => line.TakeWhile(c => c == '#').Count())
+                        .DefaultIfEmpty(0)
+                        .Max();
+
+                    // Top-level properties start at ## (depth 2), each nesting adds 1
+                    return maxHashes <= depth + 1;
+                },
+                iter: 1000
+            );
+    }
+
+    /// <summary>
+    /// Builds a JSON object nested to the specified depth.
+    /// Depth 1: {"a": {"value": 1}}
+    /// Depth 2: {"a": {"b": {"value": 1}}}
+    /// </summary>
+    private static string BuildNestedJson(int depth)
+    {
+        StringBuilder sb = new();
+        for (int i = 0; i < depth; i++)
+            sb.Append($$"""{"level{{i}}": """);
+
+        sb.Append("{\"value\": 1}");
+
+        for (int i = 0; i < depth; i++)
+            sb.Append('}');
+
+        return sb.ToString();
     }
 }

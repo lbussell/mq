@@ -26,7 +26,10 @@ public static class MqProcessor
         StringBuilder sb = new StringBuilder();
 
         if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
+        {
             sb.AppendLine($"# {titleValue}");
+            sb.AppendLine();
+        }
 
         WriteObjectProperties(sb, root, title, headingDepth: 2);
 
@@ -50,31 +53,40 @@ public static class MqProcessor
             if (prop.Value.ValueKind == JsonValueKind.Object)
             {
                 sb.AppendLine($"{hashes} {prop.Name}");
+                sb.AppendLine();
                 WriteObjectProperties(sb, prop.Value, skipProperty: null, headingDepth + 1);
             }
             else if (prop.Value.ValueKind == JsonValueKind.Array)
             {
                 sb.AppendLine($"{hashes} {prop.Name}");
+                sb.AppendLine();
                 int index = 0;
+                bool hasScalarItems = false;
                 foreach (JsonElement item in prop.Value.EnumerateArray())
                 {
                     if (item.ValueKind == JsonValueKind.Object)
                     {
                         string subHashes = new('#', headingDepth + 1);
                         sb.AppendLine($"{subHashes} {index}");
+                        sb.AppendLine();
                         WriteObjectProperties(sb, item, skipProperty: null, headingDepth + 2);
                     }
                     else
                     {
                         sb.AppendLine($"- {item}");
+                        hasScalarItems = true;
                     }
 
                     index++;
                 }
+
+                if (hasScalarItems)
+                    sb.AppendLine();
             }
             else
             {
                 sb.AppendLine($"{prop.Name}: {prop.Value}");
+                sb.AppendLine();
             }
         }
     }

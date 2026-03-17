@@ -9,7 +9,7 @@ Run `just validate` to format, build, and test the project.
 ## Tech Stack
 
 - .NET 10 + Native AOT
-- MSTest for unit testing
+- MSTest + CsCheck for testing
 
 ## When Making Changes
 

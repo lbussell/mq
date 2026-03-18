@@ -307,6 +307,79 @@ public class MqProcessorTests
         Assert.AreEqual(Dedent(expected), result);
     }
 
+    [TestMethod]
+    public void Process_LinkProperty_UrlValueRendersAsMarkdownLink()
+    {
+        string json = """{"name": "test", "url": "https://example.com"}""";
+        string result = MqProcessor.Process(json, linkProperties: ["url"]);
+        string expected = """
+            - **name**: test
+            - **url**: [https://example.com](https://example.com)
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_LinkProperty_NonUrlValueFallsThrough()
+    {
+        string json = """{"url": "not-a-url"}""";
+        string result = MqProcessor.Process(json, linkProperties: ["url"]);
+        string expected = """
+            - **url**: not-a-url
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_LinkProperty_PairedPropertiesConsumesBothAndRendersLink()
+    {
+        string json = """{"url": "https://example.com", "title": "Example", "stars": 5}""";
+        string result = MqProcessor.Process(json, linkProperties: ["url,title"]);
+        string expected = """
+            - **url**: [Example](https://example.com)
+            - **stars**: 5
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_LinkProperty_MissingTextPropertyFallsBackToUrlAsLinkText()
+    {
+        string json = """{"url": "https://example.com"}""";
+        string result = MqProcessor.Process(json, linkProperties: ["url,missing"]);
+        string expected = """
+            - **url**: [https://example.com](https://example.com)
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_LinkProperty_MultipleLinkSpecsApplied()
+    {
+        string json =
+            """{"html_url": "https://example.com", "clone_url": "https://git.example.com"}""";
+        string result = MqProcessor.Process(json, linkProperties: ["html_url", "clone_url"]);
+        string expected = """
+            - **html_url**: [https://example.com](https://example.com)
+            - **clone_url**: [https://git.example.com](https://git.example.com)
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_LinkProperty_AppliedInNestedObjects()
+    {
+        string json = """{"repo": {"url": "https://example.com", "name": "test"}}""";
+        string result = MqProcessor.Process(json, linkProperties: ["url"]);
+        string expected = """
+            ## repo
+
+            - **url**: [https://example.com](https://example.com)
+            - **name**: test
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
     private static string Dedent(string text)
     {
         string[] lines = text.Split('\n');

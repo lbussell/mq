@@ -23,6 +23,14 @@ record BulletListBlock(IReadOnlyList<string> Items) : MarkdownBlock;
 record TableBlock(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
     : MarkdownBlock;
 
+/// <summary>A link rendering specification parsed from a --link option value.</summary>
+/// <param name="UrlProperty">The property whose value is used as the URL.</param>
+/// <param name="TextProperty">
+/// The property whose value is used as the link text.
+/// When null, the URL value is used as both text and href.
+/// </param>
+record LinkSpec(string UrlProperty, string? TextProperty);
+
 /// <summary>Core processing logic for mq.</summary>
 public static class MqProcessor
 {
@@ -32,11 +40,18 @@ public static class MqProcessor
     /// <param name="input">A JSON string.</param>
     /// <param name="title">The JSON property name to use as the H1 heading.</param>
     /// <param name="tableProperties">Property names whose arrays should render as Markdown tables.</param>
+    /// <param name="linkProperties">
+    /// Link specs of the form <c>"urlProp"</c> or <c>"urlProp,textProp"</c>.
+    /// A single-property spec wraps the URL value as <c>[url](url)</c>.
+    /// A two-property spec renders <c>[textPropValue](urlPropValue)</c> and consumes both properties.
+    /// Non-URL values and missing properties fall through to default rendering.
+    /// </param>
     /// <returns>A Markdown string.</returns>
     public static string Process(
         string input,
         string? title = null,
-        IReadOnlyList<string>? tableProperties = null
+        IReadOnlyList<string>? tableProperties = null,
+        IReadOnlyList<string>? linkProperties = null
     )
     {
         using JsonDocument doc = JsonDocument.Parse(input);
@@ -46,24 +61,38 @@ public static class MqProcessor
             return root.ToString() ?? "";
 
         HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
+        List<LinkSpec> linkSpecs = linkProperties is null
+            ? []
+            : [.. linkProperties.Select(ParseLinkSpec)];
 
         List<MarkdownBlock> blocks = [];
 
         if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
             blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: 1, Children: []));
 
-        blocks.AddRange(CollectObjectBlocks(root, skipProperty: title, headingDepth: 2, tableSet));
+        blocks.AddRange(
+            CollectObjectBlocks(root, skipProperty: title, headingDepth: 2, tableSet, linkSpecs)
+        );
 
         StringBuilder sb = new();
         RenderBlocks(sb, blocks);
         return sb.ToString().TrimEnd();
     }
 
+    private static LinkSpec ParseLinkSpec(string spec)
+    {
+        int commaIndex = spec.IndexOf(',');
+        return commaIndex < 0
+            ? new LinkSpec(spec, null)
+            : new LinkSpec(spec[..commaIndex], spec[(commaIndex + 1)..]);
+    }
+
     private static List<MarkdownBlock> CollectObjectBlocks(
         JsonElement obj,
         string? skipProperty,
         int headingDepth,
-        HashSet<string> tableProperties
+        HashSet<string> tableProperties,
+        IReadOnlyList<LinkSpec> linkSpecs
     )
     {
         List<(string Key, string Value)> scalarItems = [];
@@ -80,19 +109,25 @@ public static class MqProcessor
                     prop.Value,
                     skipProperty: null,
                     headingDepth + 1,
-                    tableProperties
+                    tableProperties,
+                    linkSpecs
                 );
                 complexBlocks.Add(new SectionBlock(prop.Name, headingDepth, children));
             }
             else if (prop.Value.ValueKind == JsonValueKind.Array)
             {
-                complexBlocks.Add(CollectArraySection(prop, headingDepth, tableProperties));
+                complexBlocks.Add(
+                    CollectArraySection(prop, headingDepth, tableProperties, linkSpecs)
+                );
             }
             else
             {
                 scalarItems.Add((prop.Name, prop.Value.ToString() ?? ""));
             }
         }
+
+        if (linkSpecs.Count > 0)
+            scalarItems = ApplyLinks(scalarItems, linkSpecs);
 
         List<MarkdownBlock> result = [];
         if (scalarItems.Count > 0)
@@ -101,10 +136,53 @@ public static class MqProcessor
         return result;
     }
 
+    private static List<(string Key, string Value)> ApplyLinks(
+        List<(string Key, string Value)> items,
+        IReadOnlyList<LinkSpec> linkSpecs
+    )
+    {
+        // Last spec for a given URL property wins, matching CLI override semantics.
+        Dictionary<string, LinkSpec> urlPropToSpec = linkSpecs
+            .GroupBy(s => s.UrlProperty)
+            .ToDictionary(g => g.Key, g => g.Last());
+        HashSet<string> textPropsToConsume =
+        [
+            .. linkSpecs.Select(s => s.TextProperty).OfType<string>(),
+        ];
+        Dictionary<string, string> valueByKey = items.ToDictionary(i => i.Key, i => i.Value);
+
+        return
+        [
+            .. items
+                .Where(item => !textPropsToConsume.Contains(item.Key))
+                .Select(item =>
+                {
+                    if (!urlPropToSpec.TryGetValue(item.Key, out LinkSpec? spec))
+                        return item;
+
+                    if (!IsUrl(item.Value))
+                        return item;
+
+                    string linkText =
+                        spec.TextProperty is not null
+                        && valueByKey.TryGetValue(spec.TextProperty, out string? textValue)
+                            ? textValue
+                            : item.Value;
+
+                    return (item.Key, $"[{linkText}]({item.Value})");
+                }),
+        ];
+    }
+
+    private static bool IsUrl(string value) =>
+        value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+        || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
     private static SectionBlock CollectArraySection(
         JsonProperty prop,
         int headingDepth,
-        HashSet<string> tableProperties
+        HashSet<string> tableProperties,
+        IReadOnlyList<LinkSpec> linkSpecs
     )
     {
         bool isObjectArray = prop
@@ -126,7 +204,8 @@ public static class MqProcessor
                     item,
                     skipProperty: null,
                     headingDepth + 2,
-                    tableProperties
+                    tableProperties,
+                    linkSpecs
                 );
                 children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
             }

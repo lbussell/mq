@@ -118,20 +118,40 @@ public class MqProcessorTests
 
             // A blank line should only appear between two content lines (separator).
             // Two content lines should never be adjacent without a blank line,
-            // UNLESS they are both bullet-list items.
+            // UNLESS they are both bullet-list items or both table rows.
             if (previousIsContent && nextIsContent && !currentIsEmpty)
             {
                 bool bothAreBullets =
                     lines[i].TrimStart().StartsWith('-')
                     && lines[i - 1].TrimStart().StartsWith('-');
+                bool bothAreTableRows =
+                    lines[i].TrimStart().StartsWith('|')
+                    && lines[i - 1].TrimStart().StartsWith('|');
                 Assert.IsTrue(
-                    bothAreBullets,
+                    bothAreBullets || bothAreTableRows,
                     $"Lines {i - 1} and {i} are adjacent content lines without a blank line separator:\n"
                         + $"  [{i - 1}] \"{lines[i - 1]}\"\n"
                         + $"  [{i}] \"{lines[i]}\""
                 );
             }
         }
+    }
+
+    [TestMethod]
+    public void Process_ScalarProperties_RenderedBeforeComplexProperties()
+    {
+        string json = """{"name": "test", "info": {"x": 1}, "count": 42}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+
+            count: 42
+
+            ## info
+
+            x: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
     }
 
     [TestMethod]

@@ -6,6 +6,23 @@ using System.Text.Json;
 
 namespace Mq.Core;
 
+/// <summary>A single unit of markdown output.</summary>
+abstract record MarkdownBlock;
+
+/// <summary>A scalar property rendered as "key: value".</summary>
+record KeyValueBlock(string Key, string Value) : MarkdownBlock;
+
+/// <summary>A heading with child blocks underneath it.</summary>
+record SectionBlock(string Heading, int Depth, IReadOnlyList<MarkdownBlock> Children)
+    : MarkdownBlock;
+
+/// <summary>A bullet list of scalar items.</summary>
+record BulletListBlock(IReadOnlyList<string> Items) : MarkdownBlock;
+
+/// <summary>A markdown table.</summary>
+record TableBlock(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
+    : MarkdownBlock;
+
 /// <summary>Core processing logic for mq.</summary>
 public static class MqProcessor
 {
@@ -28,30 +45,29 @@ public static class MqProcessor
         if (root.ValueKind != JsonValueKind.Object)
             return root.ToString() ?? "";
 
-        StringBuilder sb = new StringBuilder();
-
-        if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
-        {
-            sb.AppendLine($"# {titleValue}");
-            sb.AppendLine();
-        }
-
         HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
 
-        WriteObjectProperties(sb, root, title, headingDepth: 2, tableSet);
+        List<MarkdownBlock> blocks = [];
 
+        if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
+            blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: 1, Children: []));
+
+        blocks.AddRange(CollectObjectBlocks(root, skipProperty: title, headingDepth: 2, tableSet));
+
+        StringBuilder sb = new();
+        RenderBlocks(sb, blocks);
         return sb.ToString().TrimEnd();
     }
 
-    private static void WriteObjectProperties(
-        StringBuilder sb,
+    private static List<MarkdownBlock> CollectObjectBlocks(
         JsonElement obj,
         string? skipProperty,
         int headingDepth,
         HashSet<string> tableProperties
     )
     {
-        string hashes = new('#', headingDepth);
+        List<MarkdownBlock> scalarBlocks = [];
+        List<MarkdownBlock> complexBlocks = [];
 
         foreach (JsonProperty prop in obj.EnumerateObject())
         {
@@ -60,85 +76,74 @@ public static class MqProcessor
 
             if (prop.Value.ValueKind == JsonValueKind.Object)
             {
-                sb.AppendLine($"{hashes} {prop.Name}");
-                sb.AppendLine();
-                WriteObjectProperties(
-                    sb,
+                List<MarkdownBlock> children = CollectObjectBlocks(
                     prop.Value,
                     skipProperty: null,
                     headingDepth + 1,
                     tableProperties
                 );
+                complexBlocks.Add(new SectionBlock(prop.Name, headingDepth, children));
             }
             else if (prop.Value.ValueKind == JsonValueKind.Array)
             {
-                bool isObjectArray = prop
-                    .Value.EnumerateArray()
-                    .Any(item => item.ValueKind == JsonValueKind.Object);
-
-                if (tableProperties.Contains(prop.Name) && isObjectArray)
-                {
-                    sb.AppendLine($"{hashes} {prop.Name}");
-                    sb.AppendLine();
-                    WriteTable(sb, prop.Value);
-                }
-                else
-                {
-                    sb.AppendLine($"{hashes} {prop.Name}");
-                    sb.AppendLine();
-                    WriteArray(sb, prop.Value, headingDepth, tableProperties);
-                }
+                complexBlocks.Add(CollectArraySection(prop, headingDepth, tableProperties));
             }
             else
             {
-                sb.AppendLine($"{prop.Name}: {prop.Value}");
-                sb.AppendLine();
+                scalarBlocks.Add(new KeyValueBlock(prop.Name, prop.Value.ToString() ?? ""));
             }
         }
+
+        return [.. scalarBlocks, .. complexBlocks];
     }
 
-    private static void WriteArray(
-        StringBuilder sb,
-        JsonElement array,
+    private static SectionBlock CollectArraySection(
+        JsonProperty prop,
         int headingDepth,
         HashSet<string> tableProperties
     )
     {
+        bool isObjectArray = prop
+            .Value.EnumerateArray()
+            .Any(item => item.ValueKind == JsonValueKind.Object);
+
+        if (tableProperties.Contains(prop.Name) && isObjectArray)
+            return new SectionBlock(prop.Name, headingDepth, [CollectTable(prop.Value)]);
+
+        List<MarkdownBlock> children = [];
+        List<string> scalarItems = [];
         int index = 0;
-        bool hasScalarItems = false;
-        foreach (JsonElement item in array.EnumerateArray())
+
+        foreach (JsonElement item in prop.Value.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.Object)
             {
-                string subHashes = new('#', headingDepth + 1);
-                sb.AppendLine($"{subHashes} {index}");
-                sb.AppendLine();
-                WriteObjectProperties(
-                    sb,
+                List<MarkdownBlock> objChildren = CollectObjectBlocks(
                     item,
                     skipProperty: null,
                     headingDepth + 2,
                     tableProperties
                 );
+                children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
             }
             else
             {
-                sb.AppendLine($"- {item}");
-                hasScalarItems = true;
+                scalarItems.Add(item.ToString() ?? "");
             }
 
             index++;
         }
 
-        if (hasScalarItems)
-            sb.AppendLine();
+        if (scalarItems.Count > 0)
+            children.Insert(0, new BulletListBlock(scalarItems));
+
+        return new SectionBlock(prop.Name, headingDepth, children);
     }
 
-    private static void WriteTable(StringBuilder sb, JsonElement array)
+    private static TableBlock CollectTable(JsonElement array)
     {
         List<JsonElement> rows = [.. array.EnumerateArray()];
 
-        // Collect the union of all keys in first-seen order.
         List<string> columns =
         [
             .. rows.Where(row => row.ValueKind == JsonValueKind.Object)
@@ -146,34 +151,70 @@ public static class MqProcessor
                 .Distinct(),
         ];
 
-        // Header row
-        sb.AppendLine($"| {string.Join(" | ", columns)} |");
+        List<IReadOnlyList<string>> dataRows =
+        [
+            .. rows.Select(row =>
+                (IReadOnlyList<string>)
+                    [
+                        .. columns.Select(col =>
+                        {
+                            if (
+                                row.ValueKind != JsonValueKind.Object
+                                || !row.TryGetProperty(col, out JsonElement value)
+                            )
+                                return "";
 
-        // Separator row
-        sb.AppendLine($"| {string.Join(" | ", columns.Select(_ => "---"))} |");
+                            string raw = value.ValueKind
+                                is JsonValueKind.Object
+                                    or JsonValueKind.Array
+                                ? value.GetRawText()
+                                : value.ToString() ?? "";
 
-        // Data rows
-        foreach (JsonElement row in rows)
+                            return EscapeTableCell(raw);
+                        }),
+                    ]
+            ),
+        ];
+
+        return new TableBlock(columns, dataRows);
+    }
+
+    private static void RenderBlocks(StringBuilder sb, IReadOnlyList<MarkdownBlock> blocks)
+    {
+        foreach (MarkdownBlock block in blocks)
+            RenderBlock(sb, block);
+    }
+
+    private static void RenderBlock(StringBuilder sb, MarkdownBlock block)
+    {
+        switch (block)
         {
-            IEnumerable<string> cells = columns.Select(col =>
-            {
-                if (
-                    row.ValueKind != JsonValueKind.Object
-                    || !row.TryGetProperty(col, out JsonElement value)
-                )
-                    return "";
+            case KeyValueBlock kv:
+                sb.AppendLine($"{kv.Key}: {kv.Value}");
+                sb.AppendLine();
+                break;
 
-                string raw = value.ValueKind is JsonValueKind.Object or JsonValueKind.Array
-                    ? value.GetRawText()
-                    : value.ToString() ?? "";
+            case SectionBlock section:
+                string hashes = new('#', section.Depth);
+                sb.AppendLine($"{hashes} {section.Heading}");
+                sb.AppendLine();
+                RenderBlocks(sb, section.Children);
+                break;
 
-                return EscapeTableCell(raw);
-            });
+            case BulletListBlock list:
+                foreach (string item in list.Items)
+                    sb.AppendLine($"- {item}");
+                sb.AppendLine();
+                break;
 
-            sb.AppendLine($"| {string.Join(" | ", cells)} |");
+            case TableBlock table:
+                sb.AppendLine($"| {string.Join(" | ", table.Columns)} |");
+                sb.AppendLine($"| {string.Join(" | ", table.Columns.Select(_ => "---"))} |");
+                foreach (IReadOnlyList<string> row in table.Rows)
+                    sb.AppendLine($"| {string.Join(" | ", row)} |");
+                sb.AppendLine();
+                break;
         }
-
-        sb.AppendLine();
     }
 
     private static string EscapeTableCell(string value) =>

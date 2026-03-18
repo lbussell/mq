@@ -12,7 +12,13 @@ Argument<string?> inputArgument = new("input")
 
 Option<string?> titleOption = new("--title")
 {
-    Description = "JSON property to use as the H1 heading.",
+    Description = "JSON property to use as the title heading.",
+};
+
+Option<int> depthOption = new("--depth")
+{
+    Description = "Starting heading level for output (1–6). Defaults to 1.",
+    DefaultValueFactory = _ => 1,
 };
 
 Option<string[]> tableOption = new("--table")
@@ -25,6 +31,7 @@ RootCommand rootCommand = new("Convert JSON to Markdown.")
 {
     inputArgument,
     titleOption,
+    depthOption,
     tableOption,
 };
 
@@ -32,10 +39,11 @@ rootCommand.SetAction(result =>
 {
     string? input = result.GetValue(inputArgument);
     string? title = result.GetValue(titleOption);
+    int depth = result.GetValue(depthOption);
     string[]? table = result.GetValue(tableOption);
 
     input ??= Console.In.ReadToEnd();
-    string output = MqProcessor.Process(input, title, table);
+    string output = MqProcessor.Process(input, title, table, depth);
     Console.WriteLine(output);
 });
 

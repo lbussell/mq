@@ -30,15 +30,20 @@ public static class MqProcessor
     /// Converts JSON input to a Markdown document.
     /// </summary>
     /// <param name="input">A JSON string.</param>
-    /// <param name="title">The JSON property name to use as the H1 heading.</param>
+    /// <param name="title">The JSON property name to use as the title heading.</param>
     /// <param name="tableProperties">Property names whose arrays should render as Markdown tables.</param>
+    /// <param name="depth">The starting heading level (1–6). Defaults to 1.</param>
     /// <returns>A Markdown string.</returns>
     public static string Process(
         string input,
         string? title = null,
-        IReadOnlyList<string>? tableProperties = null
+        IReadOnlyList<string>? tableProperties = null,
+        int depth = 1
     )
     {
+        if (depth < 1 || depth > 6)
+            throw new ArgumentOutOfRangeException(nameof(depth), "Depth must be between 1 and 6.");
+
         using JsonDocument doc = JsonDocument.Parse(input);
         JsonElement root = doc.RootElement;
 
@@ -50,9 +55,11 @@ public static class MqProcessor
         List<MarkdownBlock> blocks = [];
 
         if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
-            blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: 1, Children: []));
+            blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: depth, Children: []));
 
-        blocks.AddRange(CollectObjectBlocks(root, skipProperty: title, headingDepth: 2, tableSet));
+        blocks.AddRange(
+            CollectObjectBlocks(root, skipProperty: title, headingDepth: depth + 1, tableSet)
+        );
 
         StringBuilder sb = new();
         RenderBlocks(sb, blocks);

@@ -307,6 +307,58 @@ public class MqProcessorTests
         Assert.AreEqual(Dedent(expected), result);
     }
 
+    [TestMethod]
+    public void Process_DepthOption_ShiftsTitleHeadingLevel()
+    {
+        string json = """{"name": "test", "stars": 100}""";
+        string result = MqProcessor.Process(json, title: "name", depth: 3);
+        string expected = """
+            ### test
+
+            - **stars**: 100
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_ShiftsNestedHeadingsAccordingly()
+    {
+        string json = """{"name": "test", "info": {"x": 1}}""";
+        string result = MqProcessor.Process(json, title: "name", depth: 3);
+        string expected = """
+            ### test
+
+            #### info
+
+            - **x**: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_DefaultDepthMatchesCurrentBehavior()
+    {
+        string json = """{"name": "test", "info": {"x": 1}}""";
+        string withDefault = MqProcessor.Process(json, title: "name");
+        string withDepth1 = MqProcessor.Process(json, title: "name", depth: 1);
+        Assert.AreEqual(withDefault, withDepth1);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_InvalidDepthThrowsException()
+    {
+        string json = """{"name": "test"}""";
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: 0)
+        );
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: -1)
+        );
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: 7)
+        );
+    }
+
     private static string Dedent(string text)
     {
         string[] lines = text.Split('\n');

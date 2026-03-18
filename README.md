@@ -1,5 +1,30 @@
 # MQ
 
+A command line tool that converts JSON to Markdown.
+
+## Usage
+
+```bash
+# Basic: pipe JSON and convert to Markdown
+echo '{"name": "test", "stars": 100}' | mq
+
+# Use a property as the H1 heading
+echo '{"name": "test", "stars": 100}' | mq --title name
+
+# Render an array of objects as a Markdown table
+echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq --title name --table items
+
+# Multiple --table flags
+echo '{"x": [{"a": 1}], "y": [{"b": 2}]}' | mq --table x --table y
+```
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--title <property>` | Use the named property's value as the H1 heading |
+| `--table <property>` | Render the named property's array of objects as a Markdown table (repeatable) |
+
 ## Automation scripts
 
 The `scripts/` folder contains .NET file-based apps. They use the `LoganBussell.EasyScripting` NuGet package, so they can run without a local project reference.

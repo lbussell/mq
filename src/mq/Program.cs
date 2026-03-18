@@ -1,23 +1,42 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 Logan Bussell
 // SPDX-License-Identifier: MIT
 
-using ConsoleAppFramework;
+using System.CommandLine;
 using Mq.Core;
 
-ConsoleApp.ConsoleAppBuilder consoleApp = ConsoleApp.Create();
-consoleApp.Add<MqCommand>();
-consoleApp.Run(args);
-
-class MqCommand
+Argument<string?> inputArgument = new("input")
 {
-    /// <summary>Convert JSON to Markdown.</summary>
-    /// <param name="input">JSON string. Reads from stdin if omitted.</param>
-    /// <param name="title">JSON property to use as the H1 heading.</param>
-    [Command("")]
-    public void Execute([Argument] string? input = null, string? title = null)
-    {
-        input ??= Console.In.ReadToEnd();
-        string result = MqProcessor.Process(input, title);
-        Console.WriteLine(result);
-    }
-}
+    Description = "JSON string. Reads from stdin if omitted.",
+    Arity = ArgumentArity.ZeroOrOne,
+};
+
+Option<string?> titleOption = new("--title")
+{
+    Description = "JSON property to use as the H1 heading.",
+};
+
+Option<string[]> tableOption = new("--table")
+{
+    Description = "JSON properties whose arrays should render as Markdown tables.",
+    AllowMultipleArgumentsPerToken = true,
+};
+
+RootCommand rootCommand = new("Convert JSON to Markdown.")
+{
+    inputArgument,
+    titleOption,
+    tableOption,
+};
+
+rootCommand.SetAction(result =>
+{
+    string? input = result.GetValue(inputArgument);
+    string? title = result.GetValue(titleOption);
+    string[]? table = result.GetValue(tableOption);
+
+    input ??= Console.In.ReadToEnd();
+    string output = MqProcessor.Process(input, title, table);
+    Console.WriteLine(output);
+});
+
+rootCommand.Parse(args).Invoke();

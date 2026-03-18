@@ -134,6 +134,161 @@ public class MqProcessorTests
         }
     }
 
+    [TestMethod]
+    public void Process_TableProperty_RendersMarkdownTable()
+    {
+        string json = """{"name": "test", "items": [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]}""";
+        string result = MqProcessor.Process(json, title: "name", tableProperties: ["items"]);
+        string expected = """
+            # test
+
+            ## items
+
+            | a | b |
+            | --- | --- |
+            | 1 | x |
+            | 2 | y |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_MissingKeysRenderAsEmptyCells()
+    {
+        string json = """{"items": [{"a": 1}, {"b": 2}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+
+            | a | b |
+            | --- | --- |
+            | 1 |  |
+            |  | 2 |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_NestedObjectsRenderAsInlineJson()
+    {
+        string json = """{"items": [{"name": "a", "meta": {"x": 1}}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+
+            | name | meta |
+            | --- | --- |
+            | a | {"x": 1} |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_ScalarArrayFallsBackToBulletList()
+    {
+        string json = """{"tags": ["alpha", "beta"]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["tags"]);
+        string expected = """
+            ## tags
+
+            - alpha
+            - beta
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_NonArrayPropertyFallsBackToDefault()
+    {
+        string json = """{"name": "test", "count": 42}""";
+        string result = MqProcessor.Process(json, tableProperties: ["count"]);
+        string expected = """
+            name: test
+
+            count: 42
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_MultipleTableProperties_AllRenderAsTables()
+    {
+        string json = """{"a": [{"x": 1}], "b": [{"y": 2}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["a", "b"]);
+        string expected = """
+            ## a
+
+            | x |
+            | --- |
+            | 1 |
+
+            ## b
+
+            | y |
+            | --- |
+            | 2 |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableWithTitleCombined_WorksTogether()
+    {
+        string json = """{"name": "root", "items": [{"k": "v"}]}""";
+        string result = MqProcessor.Process(json, title: "name", tableProperties: ["items"]);
+        string expected = """
+            # root
+
+            ## items
+
+            | k |
+            | --- |
+            | v |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_PipeCharactersInValuesAreEscaped()
+    {
+        string json = """{"items": [{"col": "a|b|c"}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+
+            | col |
+            | --- |
+            | a\|b\|c |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_NewlinesInValuesAreReplacedWithBreaks()
+    {
+        string json = """{"items": [{"col": "line1\nline2"}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+
+            | col |
+            | --- |
+            | line1<br>line2 |
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TableProperty_EmptyArrayRendersOnlyHeading()
+    {
+        string json = """{"items": []}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
     private static string Dedent(string text)
     {
         string[] lines = text.Split('\n');

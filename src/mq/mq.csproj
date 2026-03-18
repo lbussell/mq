@@ -8,10 +8,6 @@
     <ToolCommandName>mq</ToolCommandName>
   </PropertyGroup>
 
-  <ItemGroup Label="Dependencies">
-    <PackageReference Include="ConsoleAppFramework" />
-  </ItemGroup>
-
   <ItemGroup Label="Project References">
     <ProjectReference Include="../mq.core/mq.core.csproj" />
   </ItemGroup>
@@ -37,6 +33,10 @@
   <PropertyGroup Label="Versioning">
     <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
+
+  <ItemGroup Label="Dependencies">
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
 
   <ItemGroup Label="Versioning">
     <PackageReference Include="MinVer" PrivateAssets="All" />

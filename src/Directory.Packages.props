@@ -2,12 +2,11 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup Label="Dependencies">
-    <PackageVersion Include="ConsoleAppFramework" Version="5.7.13" />
     <PackageVersion Include="CsCheck" Version="4.6.2" />
     <PackageVersion Include="CSharpier.MSBuild" Version="1.2.6" />
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="MSTest" Version="3.8.3" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.5" />
   </ItemGroup>
 </Project>

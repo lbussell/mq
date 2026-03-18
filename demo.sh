@@ -5,6 +5,6 @@ if ! command -v gh &>/dev/null; then
         exit 1
 fi
 
-gh pr view --repo dotnet/docker-tools 2030 --json title,id,author,statusCheckRollup |
-        jq '.statusCheckRollup |= [.[] | {name, conclusion, status}]' |
+gh pr view --repo dotnet/docker-tools 2030 --json title,number,author,statusCheckRollup |
+        jq '.author |= .login | .statusCheckRollup |= [.[] | {name, conclusion, status}]' |
         just run --title title --table statusCheckRollup

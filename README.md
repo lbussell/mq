@@ -11,7 +11,13 @@ echo '{"name": "test", "stars": 100}' | mq
 # Use a property as the H1 heading
 echo '{"name": "test", "stars": 100}' | mq --title name
 
-# Render an array of objects as a Markdown table
+# Root arrays: each object is separated by ---
+echo '[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]' | mq
+
+# Top-level array properties: items separated by --- (without --table)
+echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq
+
+# Render an array of objects as a Markdown table (takes precedence over ---)
 echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq --title name --table items
 
 # Multiple --table flags

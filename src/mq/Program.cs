@@ -21,11 +21,18 @@ Option<string[]> tableOption = new("--table")
     AllowMultipleArgumentsPerToken = true,
 };
 
+Option<string[]> codeOption = new("--code")
+{
+    Description = "JSON properties whose values should render as code.",
+    AllowMultipleArgumentsPerToken = true,
+};
+
 RootCommand rootCommand = new("Convert JSON to Markdown.")
 {
     inputArgument,
     titleOption,
     tableOption,
+    codeOption,
 };
 
 rootCommand.SetAction(result =>
@@ -33,9 +40,10 @@ rootCommand.SetAction(result =>
     string? input = result.GetValue(inputArgument);
     string? title = result.GetValue(titleOption);
     string[]? table = result.GetValue(tableOption);
+    string[]? code = result.GetValue(codeOption);
 
     input ??= Console.In.ReadToEnd();
-    string output = MqProcessor.Process(input, title, table);
+    string output = MqProcessor.Process(input, title, table, code);
     Console.WriteLine(output);
 });
 

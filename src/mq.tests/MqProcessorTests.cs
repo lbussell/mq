@@ -64,7 +64,7 @@ public class MqProcessorTests
     }
 
     [TestMethod]
-    public void Process_TopLevelObjectArray_UsesHorizontalRulesBetweenItems()
+    public void Process_ObjectArray_BecomesSubHeadingsPerElement()
     {
         string json = """{"name": "test", "items": [{"a": 1}, {"a": 2}]}""";
         string result = MqProcessor.Process(json, title: "name");
@@ -73,9 +73,11 @@ public class MqProcessorTests
 
             ## items
 
+            ### 0
+
             - **a**: 1
 
-            ---
+            ### 1
 
             - **a**: 2
             """;
@@ -130,22 +132,6 @@ public class MqProcessorTests
         string expected = """
             - **name**: a
             - **stars**: 1
-            """;
-        Assert.AreEqual(Dedent(expected), result);
-    }
-
-    [TestMethod]
-    public void Process_TopLevelObjectArrayWithTable_NoHorizontalRules()
-    {
-        string json = """{"items": [{"a": 1}, {"a": 2}]}""";
-        string result = MqProcessor.Process(json, tableProperties: ["items"]);
-        string expected = """
-            ## items
-
-            a
-            ---
-            1
-            2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }

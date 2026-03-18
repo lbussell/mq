@@ -138,40 +138,21 @@ public static class MqProcessor
         if (tableProperties.Contains(prop.Name) && isObjectArray)
             return new SectionBlock(prop.Name, headingDepth, [CollectTable(prop.Value)]);
 
-        bool isTopLevel = headingDepth == 2;
         List<MarkdownBlock> children = [];
         List<string> scalarItems = [];
         int index = 0;
-        int objectCount = 0;
 
         foreach (JsonElement item in prop.Value.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.Object)
             {
-                if (isTopLevel)
-                {
-                    if (objectCount > 0)
-                        children.Add(new HorizontalRuleBlock());
-                    children.AddRange(
-                        CollectObjectBlocks(
-                            item,
-                            skipProperty: null,
-                            headingDepth + 1,
-                            tableProperties
-                        )
-                    );
-                }
-                else
-                {
-                    List<MarkdownBlock> objChildren = CollectObjectBlocks(
-                        item,
-                        skipProperty: null,
-                        headingDepth + 2,
-                        tableProperties
-                    );
-                    children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
-                }
-                objectCount++;
+                List<MarkdownBlock> objChildren = CollectObjectBlocks(
+                    item,
+                    skipProperty: null,
+                    headingDepth + 2,
+                    tableProperties
+                );
+                children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
             }
             else
             {

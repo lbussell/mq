@@ -163,10 +163,10 @@ public class MqProcessorTests
 
             ## items
 
-            | a | b |
-            | --- | --- |
-            | 1 | x |
-            | 2 | y |
+            a | b
+            --- | ---
+            1 | x
+            2 | y
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -179,10 +179,10 @@ public class MqProcessorTests
         string expected = """
             ## items
 
-            | a | b |
-            | --- | --- |
-            | 1 |  |
-            |  | 2 |
+            a | b
+            --- | ---
+            1 | 
+             | 2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -195,9 +195,9 @@ public class MqProcessorTests
         string expected = """
             ## items
 
-            | name | meta |
-            | --- | --- |
-            | a | {"x": 1} |
+            name | meta
+            --- | ---
+            a | {"x": 1}
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -236,15 +236,15 @@ public class MqProcessorTests
         string expected = """
             ## a
 
-            | x |
-            | --- |
-            | 1 |
+            x
+            ---
+            1
 
             ## b
 
-            | y |
-            | --- |
-            | 2 |
+            y
+            ---
+            2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -259,9 +259,9 @@ public class MqProcessorTests
 
             ## items
 
-            | k |
-            | --- |
-            | v |
+            k
+            ---
+            v
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -274,9 +274,9 @@ public class MqProcessorTests
         string expected = """
             ## items
 
-            | col |
-            | --- |
-            | a\|b\|c |
+            col
+            ---
+            a\|b\|c
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -289,9 +289,9 @@ public class MqProcessorTests
         string expected = """
             ## items
 
-            | col |
-            | --- |
-            | line1<br>line2 |
+            col
+            ---
+            line1<br>line2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }

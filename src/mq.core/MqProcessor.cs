@@ -213,10 +213,10 @@ public static class MqProcessor
                 break;
 
             case TableBlock table:
-                sb.AppendLine($"| {string.Join(" | ", table.Columns)} |");
-                sb.AppendLine($"| {string.Join(" | ", table.Columns.Select(_ => "---"))} |");
+                sb.AppendLine(string.Join(" | ", table.Columns));
+                sb.AppendLine(string.Join(" | ", table.Columns.Select(_ => "---")));
                 foreach (IReadOnlyList<string> row in table.Rows)
-                    sb.AppendLine($"| {string.Join(" | ", row)} |");
+                    sb.AppendLine(string.Join(" | ", row));
                 sb.AppendLine();
                 break;
         }

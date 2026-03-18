@@ -308,6 +308,112 @@ public class MqProcessorTests
     }
 
     [TestMethod]
+    public void Process_CodeProperty_SingleLineRendersAsInlineCode()
+    {
+        string json = """{"name": "test", "sha": "abc123"}""";
+        string result = MqProcessor.Process(json, title: "name", codeProperties: ["sha"]);
+        string expected = """
+            # test
+
+            - **sha**: `abc123`
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_CodeProperty_MultiLineRendersAsFencedCodeBlock()
+    {
+        string json = """{"name": "test", "config": "line1\nline2\nline3"}""";
+        string result = MqProcessor.Process(json, title: "name", codeProperties: ["config"]);
+        string expected = """
+            # test
+
+            ## config
+
+            ```
+            line1
+            line2
+            line3
+            ```
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_MultipleCodeProperties_AllRenderAsCode()
+    {
+        string json = """{"sha": "abc123", "tag": "v1.0.0"}""";
+        string result = MqProcessor.Process(json, codeProperties: ["sha", "tag"]);
+        string expected = """
+            - **sha**: `abc123`
+            - **tag**: `v1.0.0`
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_CodeProperty_NonScalarPropertyFallsBackToDefault()
+    {
+        string json = """{"name": "test", "info": {"x": 1}}""";
+        string result = MqProcessor.Process(json, title: "name", codeProperties: ["info"]);
+        string expected = """
+            # test
+
+            ## info
+
+            - **x**: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_CodeWithTitleAndTableCombined_WorksTogether()
+    {
+        string json = """{"name": "root", "sha": "abc123", "items": [{"k": "v"}]}""";
+        string result = MqProcessor.Process(
+            json,
+            title: "name",
+            tableProperties: ["items"],
+            codeProperties: ["sha"]
+        );
+        string expected = """
+            # root
+
+            - **sha**: `abc123`
+
+            ## items
+
+            k
+            ---
+            v
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_CodeProperty_ValueWithBackticksUsesLongerDelimiters()
+    {
+        string json = """{"cmd": "echo `hello`"}""";
+        string result = MqProcessor.Process(json, codeProperties: ["cmd"]);
+        Assert.IsTrue(
+            result.Contains("``"),
+            "Should use double backticks when value contains a backtick"
+        );
+        Assert.IsTrue(result.Contains("echo `hello`"), "Value should appear verbatim");
+    }
+
+    [TestMethod]
+    public void Process_CodeProperty_MultiLineValueWithTripleBackticksUsesFourBacktickFence()
+    {
+        string json = """{"code": "```\nfenced\n```"}""";
+        string result = MqProcessor.Process(json, codeProperties: ["code"]);
+        Assert.IsTrue(
+            result.Contains("````"),
+            "Should use 4 backticks when content contains triple backticks"
+        );
+    }
+
+    [TestMethod]
     public void Process_LinkProperty_UrlValueRendersAsMarkdownLink()
     {
         string json = """{"name": "test", "url": "https://example.com"}""";

@@ -23,6 +23,9 @@ record BulletListBlock(IReadOnlyList<string> Items) : MarkdownBlock;
 record TableBlock(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
     : MarkdownBlock;
 
+/// <summary>A fenced code block.</summary>
+record FencedCodeBlock(string Content) : MarkdownBlock;
+
 /// <summary>A link rendering specification parsed from a --link option value.</summary>
 /// <param name="UrlProperty">The property whose value is used as the URL.</param>
 /// <param name="TextProperty">
@@ -40,6 +43,7 @@ public static class MqProcessor
     /// <param name="input">A JSON string.</param>
     /// <param name="title">The JSON property name to use as the H1 heading.</param>
     /// <param name="tableProperties">Property names whose arrays should render as Markdown tables.</param>
+    /// <param name="codeProperties">Property names whose values should render as code.</param>
     /// <param name="linkProperties">
     /// Link specs of the form <c>"urlProp"</c> or <c>"urlProp,textProp"</c>.
     /// A single-property spec wraps the URL value as <c>[url](url)</c>.
@@ -51,6 +55,7 @@ public static class MqProcessor
         string input,
         string? title = null,
         IReadOnlyList<string>? tableProperties = null,
+        IReadOnlyList<string>? codeProperties = null,
         IReadOnlyList<string>? linkProperties = null
     )
     {
@@ -61,6 +66,7 @@ public static class MqProcessor
             return root.ToString() ?? "";
 
         HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
+        HashSet<string> codeSet = codeProperties is null ? [] : [.. codeProperties];
         List<LinkSpec> linkSpecs = linkProperties is null
             ? []
             : [.. linkProperties.Select(ParseLinkSpec)];
@@ -71,7 +77,14 @@ public static class MqProcessor
             blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: 1, Children: []));
 
         blocks.AddRange(
-            CollectObjectBlocks(root, skipProperty: title, headingDepth: 2, tableSet, linkSpecs)
+            CollectObjectBlocks(
+                root,
+                skipProperty: title,
+                headingDepth: 2,
+                tableSet,
+                codeSet,
+                linkSpecs
+            )
         );
 
         StringBuilder sb = new();
@@ -92,6 +105,7 @@ public static class MqProcessor
         string? skipProperty,
         int headingDepth,
         HashSet<string> tableProperties,
+        HashSet<string> codeProperties,
         IReadOnlyList<LinkSpec> linkSpecs
     )
     {
@@ -110,6 +124,7 @@ public static class MqProcessor
                     skipProperty: null,
                     headingDepth + 1,
                     tableProperties,
+                    codeProperties,
                     linkSpecs
                 );
                 complexBlocks.Add(new SectionBlock(prop.Name, headingDepth, children));
@@ -117,12 +132,31 @@ public static class MqProcessor
             else if (prop.Value.ValueKind == JsonValueKind.Array)
             {
                 complexBlocks.Add(
-                    CollectArraySection(prop, headingDepth, tableProperties, linkSpecs)
+                    CollectArraySection(
+                        prop,
+                        headingDepth,
+                        tableProperties,
+                        codeProperties,
+                        linkSpecs
+                    )
                 );
             }
             else
             {
-                scalarItems.Add((prop.Name, prop.Value.ToString() ?? ""));
+                string value = prop.Value.ToString() ?? "";
+                if (codeProperties.Contains(prop.Name))
+                {
+                    if (value.Contains('\n'))
+                        complexBlocks.Add(
+                            new SectionBlock(prop.Name, headingDepth, [new FencedCodeBlock(value)])
+                        );
+                    else
+                        scalarItems.Add((prop.Name, FormatInlineCode(value)));
+                }
+                else
+                {
+                    scalarItems.Add((prop.Name, value));
+                }
             }
         }
 
@@ -182,6 +216,7 @@ public static class MqProcessor
         JsonProperty prop,
         int headingDepth,
         HashSet<string> tableProperties,
+        HashSet<string> codeProperties,
         IReadOnlyList<LinkSpec> linkSpecs
     )
     {
@@ -205,6 +240,7 @@ public static class MqProcessor
                     skipProperty: null,
                     headingDepth + 2,
                     tableProperties,
+                    codeProperties,
                     linkSpecs
                 );
                 children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
@@ -298,9 +334,63 @@ public static class MqProcessor
                     sb.AppendLine(string.Join(" | ", row));
                 sb.AppendLine();
                 break;
+
+            case FencedCodeBlock code:
+                string fence = CodeFence(code.Content);
+                sb.AppendLine(fence);
+                sb.AppendLine(code.Content);
+                sb.AppendLine(fence);
+                sb.AppendLine();
+                break;
         }
     }
 
     private static string EscapeTableCell(string value) =>
         value.Replace("|", "\\|").Replace("\n", "<br>");
+
+    /// <summary>
+    /// Wraps a value in inline code backticks, using enough backticks to avoid
+    /// conflicts with any backticks present in the value.
+    /// </summary>
+    private static string FormatInlineCode(string value)
+    {
+        int max = MaxConsecutiveBackticks(value);
+        string delimiters = new('`', max + 1);
+        // Add padding spaces when value starts or ends with a backtick to avoid
+        // the delimiter run merging with the value.
+        bool needsPadding = value.StartsWith('`') || value.EndsWith('`');
+        return needsPadding
+            ? $"{delimiters} {value} {delimiters}"
+            : $"{delimiters}{value}{delimiters}";
+    }
+
+    /// <summary>
+    /// Returns the fence string (``` or longer) needed to safely wrap the content
+    /// without prematurely closing the fenced code block.
+    /// </summary>
+    private static string CodeFence(string content)
+    {
+        int max = MaxConsecutiveBackticks(content);
+        return new('`', Math.Max(3, max + 1));
+    }
+
+    private static int MaxConsecutiveBackticks(string value)
+    {
+        int max = 0;
+        int run = 0;
+        foreach (char c in value)
+        {
+            if (c == '`')
+            {
+                run++;
+                if (run > max)
+                    max = run;
+            }
+            else
+            {
+                run = 0;
+            }
+        }
+        return max;
+    }
 }

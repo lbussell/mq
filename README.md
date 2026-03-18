@@ -17,6 +17,15 @@ echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq --title name --table
 # Multiple --table flags
 echo '{"x": [{"a": 1}], "y": [{"b": 2}]}' | mq --table x --table y
 
+# Render a single-line property value as inline code
+echo '{"name": "test", "sha": "abc123"}' | mq --title name --code sha
+
+# Render a multi-line property value as a fenced code block
+echo '{"name": "test", "diff": "line1\nline2\nline3"}' | mq --title name --code diff
+
+# Multiple --code flags
+echo '{"sha": "abc123", "tag": "v1.0.0"}' | mq --code sha --code tag
+
 # Render a URL property as a clickable Markdown link
 echo '{"name": "test", "url": "https://example.com"}' | mq --link url
 
@@ -30,6 +39,7 @@ echo '{"url": "https://example.com", "title": "Example", "stars": 5}' | mq --lin
 | --- | --- |
 | `--title <property>` | Use the named property's value as the H1 heading |
 | `--table <property>` | Render the named property's array of objects as a Markdown table (repeatable) |
+| `--code <property>` | Render the named property's value as inline code (single-line) or a fenced code block (multi-line) (repeatable) |
 | `--link <spec>` | Render a URL property as a clickable Markdown link (repeatable). Use `urlProp` to wrap the URL value, or `urlProp,textProp` to pair two properties into `[textPropValue](urlPropValue)`, consuming both from the output. Non-URL values and missing properties fall through to default rendering. |
 
 ## Automation scripts

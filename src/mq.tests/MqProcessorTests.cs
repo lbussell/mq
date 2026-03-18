@@ -25,9 +25,8 @@ public class MqProcessorTests
         string expected = """
             # dotnet/runtime
 
-            stars: 100
-
-            url: https://example.com
+            - **stars**: 100
+            - **url**: https://example.com
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -42,7 +41,7 @@ public class MqProcessorTests
 
             ## issues
 
-            totalCount: 7878
+            - **totalCount**: 7878
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -76,11 +75,11 @@ public class MqProcessorTests
 
             ### 0
 
-            a: 1
+            - **a**: 1
 
             ### 1
 
-            a: 2
+            - **a**: 2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -97,7 +96,7 @@ public class MqProcessorTests
 
             ### level2
 
-            value: 42
+            - **value**: 42
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -145,11 +144,11 @@ public class MqProcessorTests
         string expected = """
             # test
 
-            count: 42
+            - **count**: 42
 
             ## info
 
-            x: 1
+            - **x**: 1
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -223,9 +222,8 @@ public class MqProcessorTests
         string json = """{"name": "test", "count": 42}""";
         string result = MqProcessor.Process(json, tableProperties: ["count"]);
         string expected = """
-            name: test
-
-            count: 42
+            - **name**: test
+            - **count**: 42
             """;
         Assert.AreEqual(Dedent(expected), result);
     }

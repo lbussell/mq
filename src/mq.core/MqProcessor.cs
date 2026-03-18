@@ -9,8 +9,8 @@ namespace Mq.Core;
 /// <summary>A single unit of markdown output.</summary>
 abstract record MarkdownBlock;
 
-/// <summary>A scalar property rendered as "key: value".</summary>
-record KeyValueBlock(string Key, string Value) : MarkdownBlock;
+/// <summary>A group of scalar properties rendered as a bullet list with bold keys.</summary>
+record KeyValueListBlock(IReadOnlyList<(string Key, string Value)> Items) : MarkdownBlock;
 
 /// <summary>A heading with child blocks underneath it.</summary>
 record SectionBlock(string Heading, int Depth, IReadOnlyList<MarkdownBlock> Children)
@@ -66,7 +66,7 @@ public static class MqProcessor
         HashSet<string> tableProperties
     )
     {
-        List<MarkdownBlock> scalarBlocks = [];
+        List<(string Key, string Value)> scalarItems = [];
         List<MarkdownBlock> complexBlocks = [];
 
         foreach (JsonProperty prop in obj.EnumerateObject())
@@ -90,11 +90,15 @@ public static class MqProcessor
             }
             else
             {
-                scalarBlocks.Add(new KeyValueBlock(prop.Name, prop.Value.ToString() ?? ""));
+                scalarItems.Add((prop.Name, prop.Value.ToString() ?? ""));
             }
         }
 
-        return [.. scalarBlocks, .. complexBlocks];
+        List<MarkdownBlock> result = [];
+        if (scalarItems.Count > 0)
+            result.Add(new KeyValueListBlock(scalarItems));
+        result.AddRange(complexBlocks);
+        return result;
     }
 
     private static SectionBlock CollectArraySection(
@@ -189,8 +193,9 @@ public static class MqProcessor
     {
         switch (block)
         {
-            case KeyValueBlock kv:
-                sb.AppendLine($"{kv.Key}: {kv.Value}");
+            case KeyValueListBlock kvList:
+                foreach ((string key, string value) in kvList.Items)
+                    sb.AppendLine($"- **{key}**: {value}");
                 sb.AppendLine();
                 break;
 

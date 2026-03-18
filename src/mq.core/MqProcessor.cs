@@ -23,6 +23,9 @@ record BulletListBlock(IReadOnlyList<string> Items) : MarkdownBlock;
 record TableBlock(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
     : MarkdownBlock;
 
+/// <summary>A horizontal rule separating sections.</summary>
+record HorizontalRuleBlock : MarkdownBlock;
+
 /// <summary>Core processing logic for mq.</summary>
 public static class MqProcessor
 {
@@ -42,10 +45,31 @@ public static class MqProcessor
         using JsonDocument doc = JsonDocument.Parse(input);
         JsonElement root = doc.RootElement;
 
+        HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            List<MarkdownBlock> arrayBlocks = [];
+            int objectCount = 0;
+            foreach (JsonElement item in root.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                if (objectCount > 0)
+                    arrayBlocks.Add(new HorizontalRuleBlock());
+                arrayBlocks.AddRange(
+                    CollectObjectBlocks(item, skipProperty: null, headingDepth: 2, tableSet)
+                );
+                objectCount++;
+            }
+            StringBuilder arraySb = new();
+            RenderBlocks(arraySb, arrayBlocks);
+            return arraySb.ToString().TrimEnd();
+        }
+
         if (root.ValueKind != JsonValueKind.Object)
             return root.ToString() ?? "";
-
-        HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
 
         List<MarkdownBlock> blocks = [];
 
@@ -114,21 +138,40 @@ public static class MqProcessor
         if (tableProperties.Contains(prop.Name) && isObjectArray)
             return new SectionBlock(prop.Name, headingDepth, [CollectTable(prop.Value)]);
 
+        bool isTopLevel = headingDepth == 2;
         List<MarkdownBlock> children = [];
         List<string> scalarItems = [];
         int index = 0;
+        int objectCount = 0;
 
         foreach (JsonElement item in prop.Value.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.Object)
             {
-                List<MarkdownBlock> objChildren = CollectObjectBlocks(
-                    item,
-                    skipProperty: null,
-                    headingDepth + 2,
-                    tableProperties
-                );
-                children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
+                if (isTopLevel)
+                {
+                    if (objectCount > 0)
+                        children.Add(new HorizontalRuleBlock());
+                    children.AddRange(
+                        CollectObjectBlocks(
+                            item,
+                            skipProperty: null,
+                            headingDepth + 1,
+                            tableProperties
+                        )
+                    );
+                }
+                else
+                {
+                    List<MarkdownBlock> objChildren = CollectObjectBlocks(
+                        item,
+                        skipProperty: null,
+                        headingDepth + 2,
+                        tableProperties
+                    );
+                    children.Add(new SectionBlock(index.ToString(), headingDepth + 1, objChildren));
+                }
+                objectCount++;
             }
             else
             {
@@ -217,6 +260,11 @@ public static class MqProcessor
                 sb.AppendLine(string.Join(" | ", table.Columns.Select(_ => "---")));
                 foreach (IReadOnlyList<string> row in table.Rows)
                     sb.AppendLine(string.Join(" | ", row));
+                sb.AppendLine();
+                break;
+
+            case HorizontalRuleBlock:
+                sb.AppendLine("---");
                 sb.AppendLine();
                 break;
         }

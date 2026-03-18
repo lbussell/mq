@@ -64,7 +64,7 @@ public class MqProcessorTests
     }
 
     [TestMethod]
-    public void Process_ObjectArray_BecomesSubHeadingsPerElement()
+    public void Process_TopLevelObjectArray_UsesHorizontalRulesBetweenItems()
     {
         string json = """{"name": "test", "items": [{"a": 1}, {"a": 2}]}""";
         string result = MqProcessor.Process(json, title: "name");
@@ -73,13 +73,79 @@ public class MqProcessorTests
 
             ## items
 
-            ### 0
+            - **a**: 1
+
+            ---
+
+            - **a**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_NestedObjectArray_BecomesSubHeadingsPerElement()
+    {
+        string json = """{"name": "test", "outer": {"items": [{"a": 1}, {"a": 2}]}}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+
+            ## outer
+
+            ### items
+
+            #### 0
 
             - **a**: 1
 
-            ### 1
+            #### 1
 
             - **a**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArray_UsesHorizontalRulesBetweenItems()
+    {
+        string json = """[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+
+            ---
+
+            - **name**: b
+            - **stars**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArraySingleItem_NoHorizontalRule()
+    {
+        string json = """[{"name": "a", "stars": 1}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_TopLevelObjectArrayWithTable_NoHorizontalRules()
+    {
+        string json = """{"items": [{"a": 1}, {"a": 2}]}""";
+        string result = MqProcessor.Process(json, tableProperties: ["items"]);
+        string expected = """
+            ## items
+
+            a
+            ---
+            1
+            2
             """;
         Assert.AreEqual(Dedent(expected), result);
     }

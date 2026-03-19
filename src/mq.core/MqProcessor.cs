@@ -26,6 +26,9 @@ record TableBlock(IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<str
 /// <summary>A fenced code block.</summary>
 record FencedCodeBlock(string Content) : MarkdownBlock;
 
+/// <summary>A horizontal rule separating sections.</summary>
+record HorizontalRuleBlock : MarkdownBlock;
+
 /// <summary>Core processing logic for mq.</summary>
 public static class MqProcessor
 {
@@ -52,11 +55,38 @@ public static class MqProcessor
         using JsonDocument doc = JsonDocument.Parse(input);
         JsonElement root = doc.RootElement;
 
-        if (root.ValueKind != JsonValueKind.Object)
-            return root.ToString() ?? "";
-
         HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
         HashSet<string> codeSet = codeProperties is null ? [] : [.. codeProperties];
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            List<MarkdownBlock> arrayBlocks = [];
+            int objectCount = 0;
+            foreach (JsonElement item in root.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                if (objectCount > 0)
+                    arrayBlocks.Add(new HorizontalRuleBlock());
+                arrayBlocks.AddRange(
+                    CollectObjectBlocks(
+                        item,
+                        skipProperty: null,
+                        headingDepth: 2,
+                        tableSet,
+                        codeSet
+                    )
+                );
+                objectCount++;
+            }
+            StringBuilder arraySb = new();
+            RenderBlocks(arraySb, arrayBlocks);
+            return arraySb.ToString().TrimEnd();
+        }
+
+        if (root.ValueKind != JsonValueKind.Object)
+            return root.ToString() ?? "";
 
         List<MarkdownBlock> blocks = [];
 
@@ -255,6 +285,11 @@ public static class MqProcessor
                 sb.AppendLine(string.Join(" | ", table.Columns.Select(_ => "---")));
                 foreach (IReadOnlyList<string> row in table.Rows)
                     sb.AppendLine(string.Join(" | ", row));
+                sb.AppendLine();
+                break;
+
+            case HorizontalRuleBlock:
+                sb.AppendLine("---");
                 sb.AppendLine();
                 break;
 

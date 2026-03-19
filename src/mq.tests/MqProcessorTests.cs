@@ -85,6 +85,58 @@ public class MqProcessorTests
     }
 
     [TestMethod]
+    public void Process_NestedObjectArray_BecomesSubHeadingsPerElement()
+    {
+        string json = """{"name": "test", "outer": {"items": [{"a": 1}, {"a": 2}]}}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+
+            ## outer
+
+            ### items
+
+            #### 0
+
+            - **a**: 1
+
+            #### 1
+
+            - **a**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArray_UsesHorizontalRulesBetweenItems()
+    {
+        string json = """[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+
+            ---
+
+            - **name**: b
+            - **stars**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArraySingleItem_NoHorizontalRule()
+    {
+        string json = """[{"name": "a", "stars": 1}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
     public void Process_DeeplyNested_IncrementsHeadingDepth()
     {
         string json = """{"name": "root", "level1": {"level2": {"value": 42}}}""";

@@ -14,6 +14,9 @@ echo '{"name": "test", "stars": 100}' | mq --title name
 # Start headings at H3 instead of H1
 echo '{"name": "test", "stars": 100}' | mq --title name --depth 3
 
+# Root arrays: each object is separated by ---
+echo '[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]' | mq
+
 # Render an array of objects as a Markdown table
 echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq --title name --table items
 

@@ -34,6 +34,9 @@ record FencedCodeBlock(string Content) : MarkdownBlock;
 /// </param>
 record LinkSpec(string UrlProperty, string? TextProperty);
 
+/// <summary>A horizontal rule separating sections.</summary>
+record HorizontalRuleBlock : MarkdownBlock;
+
 /// <summary>Core processing logic for mq.</summary>
 public static class MqProcessor
 {
@@ -41,7 +44,7 @@ public static class MqProcessor
     /// Converts JSON input to a Markdown document.
     /// </summary>
     /// <param name="input">A JSON string.</param>
-    /// <param name="title">The JSON property name to use as the H1 heading.</param>
+    /// <param name="title">The JSON property name to use as the title heading.</param>
     /// <param name="tableProperties">Property names whose arrays should render as Markdown tables.</param>
     /// <param name="codeProperties">Property names whose values should render as code.</param>
     /// <param name="linkProperties">
@@ -50,20 +53,22 @@ public static class MqProcessor
     /// A two-property spec renders <c>[textPropValue](urlPropValue)</c> and consumes both properties.
     /// Non-URL values and missing properties fall through to default rendering.
     /// </param>
+    /// <param name="depth">The starting heading level (1–6). Defaults to 1.</param>
     /// <returns>A Markdown string.</returns>
     public static string Process(
         string input,
         string? title = null,
         IReadOnlyList<string>? tableProperties = null,
         IReadOnlyList<string>? codeProperties = null,
-        IReadOnlyList<string>? linkProperties = null
+        IReadOnlyList<string>? linkProperties = null,
+        int depth = 1
     )
     {
+        if (depth < 1 || depth > 6)
+            throw new ArgumentOutOfRangeException(nameof(depth), "Depth must be between 1 and 6.");
+
         using JsonDocument doc = JsonDocument.Parse(input);
         JsonElement root = doc.RootElement;
-
-        if (root.ValueKind != JsonValueKind.Object)
-            return root.ToString() ?? "";
 
         HashSet<string> tableSet = tableProperties is null ? [] : [.. tableProperties];
         HashSet<string> codeSet = codeProperties is null ? [] : [.. codeProperties];
@@ -71,16 +76,47 @@ public static class MqProcessor
             ? []
             : [.. linkProperties.Select(ParseLinkSpec)];
 
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            List<MarkdownBlock> arrayBlocks = [];
+            int objectCount = 0;
+            foreach (JsonElement item in root.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                if (objectCount > 0)
+                    arrayBlocks.Add(new HorizontalRuleBlock());
+                arrayBlocks.AddRange(
+                    CollectObjectBlocks(
+                        item,
+                        skipProperty: null,
+                        headingDepth: 2,
+                        tableSet,
+                        codeSet,
+                        linkSpecs
+                    )
+                );
+                objectCount++;
+            }
+            StringBuilder arraySb = new();
+            RenderBlocks(arraySb, arrayBlocks);
+            return arraySb.ToString().TrimEnd();
+        }
+
+        if (root.ValueKind != JsonValueKind.Object)
+            return root.ToString() ?? "";
+
         List<MarkdownBlock> blocks = [];
 
         if (title is not null && root.TryGetProperty(title, out JsonElement titleValue))
-            blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: 1, Children: []));
+            blocks.Add(new SectionBlock(titleValue.ToString() ?? "", Depth: depth, Children: []));
 
         blocks.AddRange(
             CollectObjectBlocks(
                 root,
                 skipProperty: title,
-                headingDepth: 2,
+                headingDepth: depth + 1,
                 tableSet,
                 codeSet,
                 linkSpecs
@@ -332,6 +368,11 @@ public static class MqProcessor
                 sb.AppendLine(string.Join(" | ", table.Columns.Select(_ => "---")));
                 foreach (IReadOnlyList<string> row in table.Rows)
                     sb.AppendLine(string.Join(" | ", row));
+                sb.AppendLine();
+                break;
+
+            case HorizontalRuleBlock:
+                sb.AppendLine("---");
                 sb.AppendLine();
                 break;
 

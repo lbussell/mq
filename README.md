@@ -11,6 +11,12 @@ echo '{"name": "test", "stars": 100}' | mq
 # Use a property as the H1 heading
 echo '{"name": "test", "stars": 100}' | mq --title name
 
+# Start headings at H3 instead of H1
+echo '{"name": "test", "stars": 100}' | mq --title name --depth 3
+
+# Root arrays: each object is separated by ---
+echo '[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]' | mq
+
 # Render an array of objects as a Markdown table
 echo '{"name": "test", "items": [{"a": 1}, {"a": 2}]}' | mq --title name --table items
 
@@ -37,7 +43,8 @@ echo '{"url": "https://example.com", "title": "Example", "stars": 5}' | mq --lin
 
 | Option | Description |
 | --- | --- |
-| `--title <property>` | Use the named property's value as the H1 heading |
+| `--title <property>` | Use the named property's value as the title heading |
+| `--depth <level>` | Starting heading level for output (1–6). Default is `1` |
 | `--table <property>` | Render the named property's array of objects as a Markdown table (repeatable) |
 | `--code <property>` | Render the named property's value as inline code (single-line) or a fenced code block (multi-line) (repeatable) |
 | `--link <spec>` | Render a URL property as a clickable Markdown link (repeatable). Use `urlProp` to wrap the URL value, or `urlProp,textProp` to pair two properties into `[textPropValue](urlPropValue)`, consuming both from the output. Non-URL values and missing properties fall through to default rendering. |

@@ -85,6 +85,58 @@ public class MqProcessorTests
     }
 
     [TestMethod]
+    public void Process_NestedObjectArray_BecomesSubHeadingsPerElement()
+    {
+        string json = """{"name": "test", "outer": {"items": [{"a": 1}, {"a": 2}]}}""";
+        string result = MqProcessor.Process(json, title: "name");
+        string expected = """
+            # test
+
+            ## outer
+
+            ### items
+
+            #### 0
+
+            - **a**: 1
+
+            #### 1
+
+            - **a**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArray_UsesHorizontalRulesBetweenItems()
+    {
+        string json = """[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+
+            ---
+
+            - **name**: b
+            - **stars**: 2
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_RootArraySingleItem_NoHorizontalRule()
+    {
+        string json = """[{"name": "a", "stars": 1}]""";
+        string result = MqProcessor.Process(json);
+        string expected = """
+            - **name**: a
+            - **stars**: 1
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
     public void Process_DeeplyNested_IncrementsHeadingDepth()
     {
         string json = """{"name": "root", "level1": {"level2": {"value": 42}}}""";
@@ -426,12 +478,40 @@ public class MqProcessorTests
     }
 
     [TestMethod]
+    public void Process_DepthOption_ShiftsTitleHeadingLevel()
+    {
+        string json = """{"name": "test", "stars": 100}""";
+        string result = MqProcessor.Process(json, title: "name", depth: 3);
+        string expected = """
+            ### test
+
+            - **stars**: 100
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
     public void Process_LinkProperty_NonUrlValueFallsThrough()
     {
         string json = """{"url": "not-a-url"}""";
         string result = MqProcessor.Process(json, linkProperties: ["url"]);
         string expected = """
             - **url**: not-a-url
+            """;
+        Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_ShiftsNestedHeadingsAccordingly()
+    {
+        string json = """{"name": "test", "info": {"x": 1}}""";
+        string result = MqProcessor.Process(json, title: "name", depth: 3);
+        string expected = """
+            ### test
+
+            #### info
+
+            - **x**: 1
             """;
         Assert.AreEqual(Dedent(expected), result);
     }
@@ -484,6 +564,30 @@ public class MqProcessorTests
             - **name**: test
             """;
         Assert.AreEqual(Dedent(expected), result);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_DefaultDepthMatchesCurrentBehavior()
+    {
+        string json = """{"name": "test", "info": {"x": 1}}""";
+        string withDefault = MqProcessor.Process(json, title: "name");
+        string withDepth1 = MqProcessor.Process(json, title: "name", depth: 1);
+        Assert.AreEqual(withDefault, withDepth1);
+    }
+
+    [TestMethod]
+    public void Process_DepthOption_InvalidDepthThrowsException()
+    {
+        string json = """{"name": "test"}""";
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: 0)
+        );
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: -1)
+        );
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            MqProcessor.Process(json, depth: 7)
+        );
     }
 
     private static string Dedent(string text)

@@ -11,6 +11,9 @@ echo '{"name": "test", "stars": 100}' | mq
 # Use a property as the H1 heading
 echo '{"name": "test", "stars": 100}' | mq --title name
 
+# Start headings at H3 instead of H1
+echo '{"name": "test", "stars": 100}' | mq --title name --depth 3
+
 # Root arrays: each object is separated by ---
 echo '[{"name": "a", "stars": 1}, {"name": "b", "stars": 2}]' | mq
 
@@ -34,7 +37,8 @@ echo '{"sha": "abc123", "tag": "v1.0.0"}' | mq --code sha --code tag
 
 | Option | Description |
 | --- | --- |
-| `--title <property>` | Use the named property's value as the H1 heading |
+| `--title <property>` | Use the named property's value as the title heading |
+| `--depth <level>` | Starting heading level for output (1–6). Default is `1` |
 | `--table <property>` | Render the named property's array of objects as a Markdown table (repeatable) |
 | `--code <property>` | Render the named property's value as inline code (single-line) or a fenced code block (multi-line) (repeatable) |
 

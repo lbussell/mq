@@ -33,6 +33,15 @@ Option<string[]> codeOption = new("--code")
     AllowMultipleArgumentsPerToken = true,
 };
 
+Option<string[]> linkOption = new("--link")
+{
+    Description = """
+        Render a URL property as a clickable Markdown link.
+        Use "urlProp" to wrap the value, or "urlProp,textProp" to pair two properties.
+        """,
+    AllowMultipleArgumentsPerToken = true,
+};
+
 RootCommand rootCommand = new("Convert JSON to Markdown.")
 {
     inputArgument,
@@ -40,6 +49,7 @@ RootCommand rootCommand = new("Convert JSON to Markdown.")
     depthOption,
     tableOption,
     codeOption,
+    linkOption,
 };
 
 rootCommand.SetAction(result =>
@@ -49,9 +59,10 @@ rootCommand.SetAction(result =>
     int depth = result.GetValue(depthOption);
     string[]? table = result.GetValue(tableOption);
     string[]? code = result.GetValue(codeOption);
+    string[]? link = result.GetValue(linkOption);
 
     input ??= Console.In.ReadToEnd();
-    string output = MqProcessor.Process(input, title, table, code, depth);
+    string output = MqProcessor.Process(input, title, table, code, link, depth);
     Console.WriteLine(output);
 });
 
